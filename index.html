@@ -1,0 +1,1363 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>1D Toleranzanalyse – Dashboard (WC/RSS/MC/VM)</title>
+  <style>
+    :root{
+      --bg:#0b1220;
+      --text:#e8eefc;
+      --muted:#a9b7d6;
+      --shadow: 0 10px 30px rgba(0,0,0,.45);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+
+      --card: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015));
+      --border: 1px solid rgba(255,255,255,.08);
+
+      --pad: 12px;
+      --gap: 12px;
+      --headerH: 56px;
+      --viz1: 155px;
+      --viz2: 185px;
+      --viz3: 240px;
+    }
+
+    *{box-sizing:border-box}
+    html, body{height:100%;}
+    body{
+      margin:0;
+      overflow:hidden;
+      background:
+        radial-gradient(1200px 800px at 20% 10%, rgba(77,163,255,.18), transparent 55%),
+        radial-gradient(900px 700px at 80% 0%, rgba(125,211,252,.12), transparent 50%),
+        linear-gradient(180deg, var(--bg), #060a14 70%);
+      color:var(--text);
+      font-family:var(--sans);
+    }
+
+    .app{
+      height:100vh;
+      padding: var(--pad);
+      display:flex;
+      flex-direction:column;
+      gap: var(--gap);
+    }
+
+    .topbar{
+      height: var(--headerH);
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:12px;
+      padding: 8px 10px 10px;
+      border-radius: 14px;
+      background: var(--card);
+      border: var(--border);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .title{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      min-width: 380px;
+    }
+    h1{margin:0;font-size:18px;letter-spacing:.3px;font-weight:800;}
+    .subtitle{color:var(--muted);font-size:12px;line-height:1.25;}
+    .rightMeta{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+    .chip{
+      font-family:var(--mono);
+      font-size:12px;
+      color:var(--muted);
+      background:rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08);
+      padding:6px 10px;
+      border-radius:999px;
+      box-shadow:0 1px 0 rgba(255,255,255,.05) inset;
+      white-space:nowrap;
+    }
+
+    button{
+      cursor:pointer;
+      border-radius:10px;
+      padding:10px 12px;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(255,255,255,.04);
+      color:var(--text);
+      font-weight:700;
+      letter-spacing:.2px;
+      transition: transform .06s ease, background .15s ease, border-color .15s ease;
+      white-space:nowrap;
+    }
+    button:hover{background:rgba(255,255,255,.06);border-color:rgba(125,211,252,.35);}
+    button:active{transform: translateY(1px);}
+    .primary{background: linear-gradient(180deg, rgba(77,163,255,.22), rgba(77,163,255,.10));border-color: rgba(77,163,255,.40);}
+    .danger{background: linear-gradient(180deg, rgba(255,77,94,.18), rgba(255,77,94,.08));border-color: rgba(255,77,94,.35);}
+
+    .dashboard{
+      flex:1;
+      display:grid;
+      grid-template-columns: 0.42fr 0.58fr;
+      gap: var(--gap);
+      min-height: 0;
+    }
+
+    .panel{
+      background: var(--card);
+      border: var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      min-height:0;
+      display:flex;
+      flex-direction:column;
+    }
+    .panelHead{
+      padding:10px 12px;
+      border-bottom:1px solid rgba(255,255,255,.07);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      background: linear-gradient(90deg, rgba(77,163,255,.12), transparent 40%);
+    }
+    .panelHead h2{
+      margin:0;
+      font-size:13px;
+      font-weight:800;
+      letter-spacing:.2px;
+    }
+    .actions{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+      align-items:center;
+    }
+
+    .leftBody{
+      padding: 10px 12px 12px;
+      display:grid;
+      grid-template-rows: 1fr auto auto;
+      gap: 10px;
+      min-height:0;
+    }
+
+    .tableWrap{
+      min-height:0;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(0,0,0,.18);
+      overflow:auto;
+    }
+    table{width:100%;border-collapse:collapse;font-size:12.5px;}
+    thead th{
+      text-align:left;
+      color:var(--muted);
+      font-weight:800;
+      font-size:11.5px;
+      padding:9px 10px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      background: rgba(15,27,51,.45);
+      position:sticky;
+      top:0;
+      z-index:1;
+    }
+    tbody td{
+      padding:7px 8px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      vertical-align:middle;
+    }
+    tbody tr:hover td{background: rgba(77,163,255,.06);}
+
+    input[type="text"], input[type="number"], select{
+      width:100%;
+      padding:8px 9px;
+      border-radius:10px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.18);
+      color:var(--text);
+      outline:none;
+      font-family:var(--sans);
+      font-size:12.5px;
+    }
+    input[type="number"]{font-family:var(--mono);}
+    input::placeholder{color: rgba(169,183,214,.65);}
+    input:focus, select:focus{
+      border-color: rgba(77,163,255,.55);
+      box-shadow: 0 0 0 3px rgba(77,163,255,.15);
+    }
+    .rowBtn{display:flex;justify-content:center;}
+    .rowBtn button{padding:7px 9px;border-radius:10px;}
+
+    .printOnly{display:none;}
+    .printValue{
+      font-family: var(--mono);
+      font-size:12px;
+      color: var(--text);
+      display:block;
+      padding: 2px 0;
+      white-space:nowrap;
+    }
+
+    .inputsGrid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .mcGrid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+      margin-top:10px;
+    }
+    .field label{
+      display:block;
+      color:var(--muted);
+      font-size:11.5px;
+      font-weight:800;
+      margin:0 0 6px 2px;
+    }
+    .hint{
+      color:var(--muted);
+      font-size:11.5px;
+      line-height:1.25;
+      margin-top:8px;
+    }
+    .mono{font-family:var(--mono);}
+    .err{
+      margin-top:8px;
+      padding:9px 10px;
+      border-radius:12px;
+      border: 1px solid rgba(255,77,94,.35);
+      background: rgba(255,77,94,.10);
+      color: #ffd0d5;
+      display:none;
+      font-family:var(--mono);
+      font-size:12px;
+      white-space:pre-wrap;
+    }
+
+    .kpis{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+    }
+    .kpi{
+      background: rgba(0,0,0,.18);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 12px;
+      padding: 9px 10px;
+      min-height: 0;
+    }
+    .kpi .label{
+      color: var(--muted);
+      font-size:11.5px;
+      font-weight:800;
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:center;
+    }
+    .kpi .value{
+      margin-top:6px;
+      font-family:var(--mono);
+      font-size:14px;
+      font-weight:900;
+      letter-spacing:.2px;
+    }
+    .small{font-size:11.5px;}
+    .status{
+      font-family:var(--mono);
+      font-size:10.5px;
+      padding:3px 8px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.04);
+      color:var(--muted);
+      white-space:nowrap;
+    }
+    .status.good{color:#0ef0b3;border-color: rgba(40,209,124,.65);background: rgba(40,209,124,.10);}
+    .status.bad{color:#ff5065;border-color: rgba(255,77,94,.65);background: rgba(255,77,94,.10);}
+    .status.warn{color:#ffcf66;border-color: rgba(255,191,60,.60);background: rgba(255,191,60,.10);}
+
+    .rightBody{
+      padding:10px 12px 12px;
+      display:grid;
+      grid-template-rows: var(--viz1) var(--viz2) var(--viz3);
+      gap: 10px;
+      min-height:0;
+    }
+
+    .chartCard{
+      background: rgba(0,0,0,.18);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 12px;
+      padding: 9px 10px;
+      min-height:0;
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+    }
+    .chartHead{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+    }
+    .chartHead .titleTxt{
+      color:var(--muted);
+      font-size:11.5px;
+      font-weight:900;
+    }
+
+    #vizWrap{
+      position:relative;
+      margin-top:8px;
+      flex:1;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(0,0,0,.18);
+      overflow:hidden;
+      padding: 8px 8px 10px;
+      min-height: 0;
+    }
+
+    canvas{
+      width:100%;
+      flex:1;
+      display:block;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.08);
+      background: rgba(0,0,0,.18);
+      margin-top:8px;
+      min-height:0;
+    }
+
+    @media (max-width: 1100px){
+      body{overflow:auto;}
+      .app{height:auto; min-height:100vh;}
+      .dashboard{grid-template-columns:1fr;}
+      .rightBody{grid-template-rows: 180px 220px 260px;}
+    }
+
+    @page { size: A4; margin: 10mm; }
+    @media print {
+      html, body{
+        height:auto !important;
+        overflow:visible !important;
+        background: #fff !important;
+        color:#000 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      body{ zoom: 0.80; }
+
+      .app{
+        height:auto !important;
+        padding: 0 !important;
+        gap: 8px !important;
+      }
+      .topbar, .panel{
+        box-shadow:none !important;
+        background:#fff !important;
+        border:1px solid #000 !important;
+      }
+      .panelHead{
+        background:#fff !important;
+        border-bottom:1px solid #000 !important;
+      }
+      .subtitle, .chip, .label, .titleTxt, .small, .hint{
+        color:#000 !important;
+      }
+
+      .noPrint, button, input, select{
+        display:none !important;
+      }
+      .printOnly{ display:block !important; }
+      .printValue{ color:#000 !important; }
+
+      .tableWrap, .kpi, .chartCard, #vizWrap, canvas{
+        background:#fff !important;
+        border:1px solid #000 !important;
+      }
+
+      .topbar, .dashboard, .panel, .chartCard, .kpi, .tableWrap{
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+
+      #barTarget{ background: rgba(0,0,0,.06) !important; border: 1px solid #000 !important; }
+      #barWC{ background: #b00020 !important; border: 1px solid #000 !important; }
+      #barRSS{ background: #007a3d !important; border: 1px solid #000 !important; }
+      #barMC{ background: rgba(0,90,200,.18) !important; border: 2px dashed #005ac8 !important; }
+      #vizMinLbl, #vizMidLbl, #vizMaxLbl{ color:#000 !important; }
+
+      .status{
+        color:#000 !important;
+        background:#fff !important;
+        border:1px solid #000 !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+<main class="app" aria-label="1D Toleranzanalyse Dashboard">
+  <header class="topbar">
+    <div class="title">
+      <h1>1D Toleranzanalyse – Dashboard</h1>
+      <div class="subtitle">WC · RSS · Monte Carlo · Virtual Manufacturing (Cpk/PPM) · Sensitivität (Pareto/Tornado)</div>
+    </div>
+    <div class="rightMeta">
+      <div class="chip">Einheit: mm · Tol+ / Tol− als positive Beträge</div>
+      <button id="printBtn" class="noPrint" title="Browser Druckdialog öffnen (PDF Export)">Als PDF drucken</button>
+    </div>
+  </header>
+
+  <div class="dashboard">
+    <section class="panel" id="leftPanel" aria-labelledby="input-kpi-heading">
+      <div class="panelHead">
+        <h2 id="input-kpi-heading">Input & KPIs</h2>
+        <div class="actions noPrint">
+          <button id="addRowBtn" title="Neue Zeile hinzufügen">+ Zeile</button>
+          <button id="clearBtn" class="danger" title="Alle Zeilen löschen (setzt Default)">Reset</button>
+          <button id="calcBtn" class="primary" title="Berechnung ausführen">Berechnen</button>
+          <button id="sim10kBtn" class="primary" title="MC 10.000 Runs + Histogramm + Cpk/PPM">Simulation starten (10k Runs)</button>
+          <button id="saveBtn" title="Eingaben lokal speichern (LocalStorage)">Speichern</button>
+          <button id="loadBtn" title="Gespeicherte Eingaben laden">Laden</button>
+        </div>
+      </div>
+
+      <div class="leftBody">
+        <div class="tableWrap">
+          <table id="stackTable">
+            <caption class="printOnly">Bauteiltabelle der Toleranzkette</caption>
+            <thead>
+              <tr>
+                <th style="width:42%;">Bauteil</th>
+                <th style="width:18%;">Nenn</th>
+                <th style="width:16%;">Tol+</th>
+                <th style="width:16%;">Tol−</th>
+                <th style="width:8%; text-align:center;">Del</th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+
+        <div>
+          <div class="inputsGrid noPrint">
+            <div class="field">
+              <label for="gapMin">Ziel Min (LSL)</label>
+              <input id="gapMin" type="number" step="0.001" placeholder="z.B. 0.20" />
+            </div>
+            <div class="field">
+              <label for="gapMax">Ziel Max (USL)</label>
+              <input id="gapMax" type="number" step="0.001" placeholder="z.B. 0.60" />
+            </div>
+          </div>
+
+          <div class="mcGrid noPrint">
+            <div class="field">
+              <label for="mcN">MC Samples</label>
+              <input id="mcN" type="number" step="1000" min="1000" max="200000" value="20000" />
+            </div>
+            <div class="field">
+              <label for="mcDist">Verteilung</label>
+              <select id="mcDist">
+                <option value="uniform">Uniform [−Tol−..+Tol+]</option>
+                <option value="gauss" selected>Normal (µ=0, σ=Tol_eff/3, trunc)</option>
+                <option value="truncnorm">Truncated Normal (legacy)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="mcSeed">Seed (optional)</label>
+              <input id="mcSeed" type="number" step="1" placeholder="leer = zufällig" />
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button id="mcOnlyBtn" class="primary" style="width:100%;">MC neu</button>
+            </div>
+          </div>
+
+          <div class="hint noPrint">
+            <b>VM-Mode:</b> Normalverteilung zentriert (µ=0), σ≈Tol_eff/3, auf Tol‑Intervall begrenzt. Cpk/PPM aus Simulation gg. Zielgrenzen.
+          </div>
+
+          <div id="errBox" class="err" role="alert" aria-live="assertive"></div>
+        </div>
+
+        <div>
+          <div class="kpis">
+            <div class="kpi">
+              <div class="label">
+                <span>Nennmaß Σ</span>
+                <span class="status" id="stNom" aria-live="polite">—</span>
+              </div>
+              <div class="value" id="outNom" aria-live="polite">—</div>
+            </div>
+            <div class="kpi">
+              <div class="label">
+                <span>Ziel (LSL..USL)</span>
+                <span class="status" id="stTarget" aria-live="polite">—</span>
+              </div>
+              <div class="value" id="outTarget" aria-live="polite">—</div>
+            </div>
+          </div>
+
+          <div class="kpis" style="margin-top:10px;">
+            <div class="kpi">
+              <div class="label">
+                <span>Worst Case</span>
+                <span class="status" id="stWC" aria-live="polite">—</span>
+              </div>
+              <div class="value" id="outWC" aria-live="polite">—</div>
+              <div class="small" style="color:var(--muted); margin-top:6px;">
+                WC Min=Σ(Nenn−Tol−), WC Max=Σ(Nenn+Tol+)
+              </div>
+            </div>
+
+            <div class="kpi">
+              <div class="label">
+                <span>RSS (3σ)</span>
+                <span class="status" id="stRSS" aria-live="polite">—</span>
+              </div>
+              <div class="value" id="outRSS" aria-live="polite">—</div>
+              <div class="small" style="color:var(--muted); margin-top:6px;">
+                RSS± = √(Σ Tol±²)
+              </div>
+            </div>
+          </div>
+
+          <div class="kpi" style="margin-top:10px;">
+            <div class="label">
+              <span>Monte Carlo</span>
+              <span class="status" id="stMC" aria-live="polite">—</span>
+            </div>
+            <div class="value" id="outMC" aria-live="polite">—</div>
+            <div class="small" style="color:var(--muted); margin-top:6px;" id="outMC2" aria-live="polite">—</div>
+          </div>
+
+          <div class="kpi" style="margin-top:10px;">
+            <div class="label">
+              <span>Virtual Manufacturing</span>
+              <span class="status" id="stVM" aria-live="polite">—</span>
+            </div>
+            <div class="value" id="outCpk" aria-live="polite">Cpk: —</div>
+            <div class="small" style="color:var(--muted); margin-top:6px;" id="outPpm" aria-live="polite">Ausschuss: —</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="rightPanel" aria-labelledby="visuals-heading">
+      <div class="panelHead">
+        <h2 id="visuals-heading">Visuals</h2>
+        <div class="actions">
+          <span class="status" id="stViz" aria-live="polite">—</span>
+          <span class="status" id="stHist" aria-live="polite">—</span>
+          <span class="status" id="stTornado" aria-live="polite">—</span>
+        </div>
+      </div>
+
+      <div class="rightBody">
+        <figure class="chartCard" aria-labelledby="stackup-caption">
+          <div class="chartHead">
+            <div class="titleTxt">Stackup: Target vs. WC vs. RSS vs. MC</div>
+          </div>
+
+          <div id="vizWrap">
+            <div id="vizAxis" style="position:absolute; left:8px; right:8px; top:6px; height:16px;">
+              <div id="vizMinLbl" style="position:absolute; left:0; top:0; color:rgba(169,183,214,.85); font-family:var(--mono); font-size:10.5px;">—</div>
+              <div id="vizMaxLbl" style="position:absolute; right:0; top:0; color:rgba(169,183,214,.85); font-family:var(--mono); font-size:10.5px;">—</div>
+              <div id="vizMidLbl" style="position:absolute; left:50%; transform:translateX(-50%); top:0; color:rgba(169,183,214,.55); font-family:var(--mono); font-size:10.5px;">—</div>
+            </div>
+
+            <div id="vizLanes" style="position:absolute; left:8px; right:8px; top:26px; bottom:8px;">
+              <div style="position:absolute; left:0; right:0; top:0; height:16px;">
+                <div style="position:absolute; left:0; top:1px; width:56px; color:rgba(169,183,214,.85); font-size:10.5px; font-family:var(--mono);">Target</div>
+                <div id="barTarget" style="position:absolute; left:0; right:0; top:1px; height:12px; border-radius:8px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.16); display:none;"></div>
+              </div>
+
+              <div style="position:absolute; left:0; right:0; top:18px; height:16px;">
+                <div style="position:absolute; left:0; top:1px; width:56px; color:rgba(169,183,214,.85); font-size:10.5px; font-family:var(--mono);">WC</div>
+                <div id="barWC" style="position:absolute; left:0; width:0; top:1px; height:12px; border-radius:8px; background:rgba(255,77,94,.70); border:1px solid rgba(255,77,94,.70);"></div>
+              </div>
+
+              <div style="position:absolute; left:0; right:0; top:36px; height:16px;">
+                <div style="position:absolute; left:0; top:1px; width:56px; color:rgba(169,183,214,.85); font-size:10.5px; font-family:var(--mono);">RSS</div>
+                <div id="barRSS" style="position:absolute; left:0; width:0; top:1px; height:12px; border-radius:8px; background:rgba(40,209,124,.65); border:1px solid rgba(40,209,124,.65);"></div>
+              </div>
+
+              <div style="position:absolute; left:0; right:0; top:54px; height:16px;">
+                <div style="position:absolute; left:0; top:1px; width:56px; color:rgba(169,183,214,.85); font-size:10.5px; font-family:var(--mono);">MC 3σ</div>
+                <div id="barMC" style="position:absolute; left:0; width:0; top:1px; height:12px; border-radius:8px; background:rgba(77,163,255,.18); border:1px dashed rgba(77,163,255,.85); display:none;"></div>
+              </div>
+            </div>
+          </div>
+
+          <figcaption id="stackup-caption" class="small" style="color:var(--muted); margin-top:6px;">
+            Skala auto aus Target & Ergebnissen · MC‑Bar = 0.135%..99.865%
+          </figcaption>
+        </figure>
+
+        <figure class="chartCard" aria-labelledby="hist-caption">
+          <div class="chartHead">
+            <div class="titleTxt">Monte‑Carlo Histogramm</div>
+            <div class="small" id="histMeta" style="color:var(--muted);">—</div>
+          </div>
+          <canvas id="histCanvas" role="img" aria-label="Histogramm der Monte-Carlo-Ergebnisse"></canvas>
+          <figcaption id="hist-caption" class="printOnly">Histogramm der Simulationswerte</figcaption>
+        </figure>
+
+        <figure class="chartCard" aria-labelledby="tornado-caption">
+          <div class="chartHead">
+            <div class="titleTxt">Sensitivität (Tornado / Pareto, rot &gt; 30%)</div>
+          </div>
+          <canvas id="tornadoCanvas" role="img" aria-label="Tornado-Diagramm der Sensitivität"></canvas>
+          <figcaption id="tornado-caption" class="printOnly">Sensitivitätsanteile pro Bauteil in Prozent</figcaption>
+        </figure>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+  const fmt = (x) => (Number.isFinite(x) ? x.toFixed(3) + " mm" : "—");
+  const toNum = (v) => {
+    if (v === "" || v === null || v === undefined) return NaN;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : NaN;
+  };
+  const setStatus = (el, kind, text) => {
+    el.classList.remove("good","bad","warn");
+    if (kind) el.classList.add(kind);
+    el.textContent = text;
+  };
+
+  const errBox = document.getElementById("errBox");
+  const showErr = (msg) => {
+    if (!msg) { errBox.style.display="none"; errBox.textContent=""; return; }
+    errBox.style.display="block";
+    errBox.textContent = msg;
+  };
+
+  function escapeHtml(s){
+    return String(s ?? "")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
+  let PRINT_MODE = false;
+
+  window.addEventListener("beforeprint", () => {
+    PRINT_MODE = true;
+    try { if (lastSamples) drawHistogram(lastSamples, 40); } catch {}
+    try { if (lastPareto)  drawTornado(lastPareto); } catch {}
+  });
+  window.addEventListener("afterprint", () => {
+    PRINT_MODE = false;
+    try { if (lastSamples) drawHistogram(lastSamples, 40); } catch {}
+    try { if (lastPareto)  drawTornado(lastPareto); } catch {}
+  });
+
+  const barTarget = document.getElementById("barTarget");
+  const barWC     = document.getElementById("barWC");
+  const barRSS    = document.getElementById("barRSS");
+  const barMC     = document.getElementById("barMC");
+  const vizMinLbl = document.getElementById("vizMinLbl");
+  const vizMidLbl = document.getElementById("vizMidLbl");
+  const vizMaxLbl = document.getElementById("vizMaxLbl");
+  const stViz     = document.getElementById("stViz");
+  const vizLanes  = document.getElementById("vizLanes");
+
+  function clamp01(x){ return Math.max(0, Math.min(1, x)); }
+  function setBar(el, leftPx, widthPx, show=true){
+    el.style.display = show ? "block" : "none";
+    el.style.left = `${leftPx}px`;
+    el.style.width = `${Math.max(0, widthPx)}px`;
+  }
+  function resetViz(){
+    setBar(barTarget, 0, 0, false);
+    setBar(barWC, 0, 0, true);
+    setBar(barRSS, 0, 0, true);
+    setBar(barMC, 0, 0, false);
+    vizMinLbl.textContent = "—";
+    vizMidLbl.textContent = "—";
+    vizMaxLbl.textContent = "—";
+    setStatus(stViz, "", "—");
+  }
+
+  function updateViz(tMin, tMax, wcMin, wcMax, rssMin, rssMax, mcMin, mcMax){
+    const laneLeftPad = 56;
+    const lanesWidth = Math.max(10, vizLanes.clientWidth - laneLeftPad);
+
+    const mins = [wcMin, rssMin];
+    const maxs = [wcMax, rssMax];
+    const targetValid = Number.isFinite(tMin) && Number.isFinite(tMax);
+    const mcValid = Number.isFinite(mcMin) && Number.isFinite(mcMax);
+
+    if (targetValid) { mins.push(tMin); maxs.push(tMax); }
+    if (mcValid) { mins.push(mcMin); maxs.push(mcMax); }
+
+    let xMin = Math.min(...mins);
+    let xMax = Math.max(...maxs);
+
+    if (!Number.isFinite(xMin) || !Number.isFinite(xMax)) { resetViz(); return; }
+    if (Math.abs(xMax - xMin) < 1e-9) { xMax = xMin + 1.0; }
+
+    const span = xMax - xMin;
+    xMin -= span * 0.05;
+    xMax += span * 0.05;
+
+    const map = (x) => {
+      const u = (x - xMin) / (xMax - xMin);
+      return laneLeftPad + clamp01(u) * lanesWidth;
+    };
+
+    vizMinLbl.textContent = fmt(xMin);
+    vizMaxLbl.textContent = fmt(xMax);
+    vizMidLbl.textContent = fmt((xMin + xMax) / 2);
+
+    if (targetValid){
+      const L = map(tMin), R = map(tMax);
+      setBar(barTarget, L, (R - L), true);
+    } else {
+      setBar(barTarget, 0, 0, false);
+    }
+
+    { const L = map(wcMin),  R = map(wcMax);  setBar(barWC,  L, (R - L), true); }
+    { const L = map(rssMin), R = map(rssMax); setBar(barRSS, L, (R - L), true); }
+
+    if (mcValid){
+      const L = map(mcMin), R = map(mcMax);
+      setBar(barMC, L, (R - L), true);
+    } else {
+      setBar(barMC, 0, 0, false);
+    }
+
+    if (targetValid){
+      const wcPass  = (wcMin >= tMin) && (wcMax <= tMax);
+      const rssPass = (rssMin >= tMin) && (rssMax <= tMax);
+      const mcPass  = mcValid ? ((mcMin >= tMin) && (mcMax <= tMax)) : true;
+
+      if (wcPass && rssPass && mcPass) setStatus(stViz, "good", "PASS");
+      else if (!wcPass && !rssPass && (!mcPass || !mcValid)) setStatus(stViz, "bad", "FAIL");
+      else setStatus(stViz, "warn", "MIXED");
+    } else {
+      setStatus(stViz, "", "—");
+    }
+  }
+
+  const tbody = document.getElementById("tbody");
+
+  function makeRow({name="", nom="", tp="", tm=""} = {}) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>
+        <input class="noPrint" type="text" placeholder="z.B. Gehäuse / Spacer / Dichtung" value="${escapeHtml(name)}">
+        <span class="printOnly printValue"></span>
+      </td>
+      <td>
+        <input class="noPrint" type="number" step="0.001" placeholder="0.000" value="${escapeHtml(nom)}">
+        <span class="printOnly printValue"></span>
+      </td>
+      <td>
+        <input class="noPrint" type="number" step="0.001" placeholder="0.000" value="${escapeHtml(tp)}">
+        <span class="printOnly printValue"></span>
+      </td>
+      <td>
+        <input class="noPrint" type="number" step="0.001" placeholder="0.000" value="${escapeHtml(tm)}">
+        <span class="printOnly printValue"></span>
+      </td>
+      <td class="rowBtn noPrint"><button class="danger" title="Zeile löschen">✕</button></td>
+    `;
+
+    const inputs = tr.querySelectorAll("input");
+    const prints = tr.querySelectorAll(".printValue");
+
+    function syncPrint(){
+      prints[0].textContent = (inputs[0].value.trim() || "—");
+      const nNom = toNum(inputs[1].value), nTp = toNum(inputs[2].value), nTm = toNum(inputs[3].value);
+      prints[1].textContent = Number.isFinite(nNom) ? nNom.toFixed(3) : "—";
+      prints[2].textContent = Number.isFinite(nTp)  ? nTp.toFixed(3)  : "—";
+      prints[3].textContent = Number.isFinite(nTm)  ? nTm.toFixed(3)  : "—";
+    }
+
+    inputs.forEach(inp => inp.addEventListener("input", syncPrint));
+    syncPrint();
+
+    tr.querySelector("button")?.addEventListener("click", () => tr.remove());
+    return tr;
+  }
+
+  function resetDefault() {
+    tbody.innerHTML = "";
+    [
+      {name:"Bauteil A", nom: "10.000", tp:"0.050", tm:"0.050"},
+      {name:"Bauteil B", nom: "5.000",  tp:"0.030", tm:"0.020"},
+      {name:"Bauteil C", nom: "2.500",  tp:"0.010", tm:"0.015"},
+    ].forEach(r => tbody.appendChild(makeRow(r)));
+    showErr("");
+    clearOutputs();
+  }
+
+  function addRow() { tbody.appendChild(makeRow({})); }
+
+  function readRows() {
+    const rows = [...tbody.querySelectorAll("tr")];
+    return rows.map((tr, idx) => {
+      const inputs = tr.querySelectorAll("input.noPrint");
+      const name = (inputs[0]?.value || "").trim() || `Row ${idx+1}`;
+      const nom = toNum(inputs[1]?.value);
+      const tp  = toNum(inputs[2]?.value);
+      const tm  = toNum(inputs[3]?.value);
+      return {name, nom, tp, tm, idx: idx+1};
+    });
+  }
+
+  function validate(data) {
+    const issues = [];
+    if (data.length === 0) issues.push("Keine Zeilen in der Tabelle.");
+    data.forEach(d => {
+      if (!Number.isFinite(d.nom)) issues.push(`Zeile ${d.idx}: Nennmaß ungültig.`);
+      if (!Number.isFinite(d.tp))  issues.push(`Zeile ${d.idx}: Tol + ungültig.`);
+      if (!Number.isFinite(d.tm))  issues.push(`Zeile ${d.idx}: Tol - ungültig.`);
+      if (Number.isFinite(d.tp) && d.tp < 0) issues.push(`Zeile ${d.idx}: Tol + muss ≥ 0 sein.`);
+      if (Number.isFinite(d.tm) && d.tm < 0) issues.push(`Zeile ${d.idx}: Tol - muss ≥ 0 sein.`);
+    });
+    return issues;
+  }
+
+  function rngFactory(seed){
+    if (!Number.isFinite(seed)) return Math.random;
+    let a = (seed >>> 0) || 0x9E3779B9;
+    return function(){
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function randn(rng){
+    let u = 0, v = 0;
+    while (u === 0) u = rng();
+    while (v === 0) v = rng();
+    return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+  }
+
+  function sampleDelta(tp, tm, dist, rng){
+    tp = Math.max(0, tp); tm = Math.max(0, tm);
+    const lo = -tm, hi = tp;
+    if ((hi - lo) <= 0) return 0;
+
+    if (dist === "uniform"){
+      return lo + rng() * (hi - lo);
+    }
+
+    if (dist === "gauss"){
+      const tolEff = Math.sqrt((tp*tp + tm*tm) / 2);
+      const sigma = Math.max(1e-12, tolEff / 3.0);
+      for (let k=0; k<200; k++){
+        const x = randn(rng) * sigma;
+        if (x >= lo && x <= hi) return x;
+      }
+      const x = randn(rng) * sigma;
+      return Math.max(lo, Math.min(hi, x));
+    }
+
+    const denom = tp + tm;
+    if (denom <= 0) return 0;
+    const pPos = tp / denom;
+    const posSide = (rng() < pPos);
+    const tol = posSide ? tp : tm;
+    if (tol <= 0) return 0;
+    const sigma = tol / 3.0;
+    let mag = 0;
+    for (let k=0; k<60; k++){
+      mag = Math.abs(randn(rng) * sigma);
+      if (mag <= tol) break;
+      if (k === 59) mag = tol;
+    }
+    return posSide ? mag : -mag;
+  }
+
+  function percentile(sortedArr, q){
+    const n = sortedArr.length;
+    if (n === 0) return NaN;
+    const pos = (n - 1) * q;
+    const lo = Math.floor(pos);
+    const hi = Math.ceil(pos);
+    if (lo === hi) return sortedArr[lo];
+    const w = pos - lo;
+    return sortedArr[lo] * (1 - w) + sortedArr[hi] * w;
+  }
+
+  function monteCarlo(data, n, dist, seed, tMin, tMax){
+    n = Math.floor(n);
+    n = Math.max(1000, Math.min(200000, n));
+
+    const rng = rngFactory(seed);
+    const res = new Float64Array(n);
+
+    let mean = 0, M2 = 0;
+    for (let i=0; i<n; i++){
+      let sum = 0;
+      for (const d of data){
+        sum += d.nom + sampleDelta(d.tp, d.tm, dist, rng);
+      }
+      res[i] = sum;
+      const delta = sum - mean;
+      mean += delta / (i + 1);
+      const delta2 = sum - mean;
+      M2 += delta * delta2;
+    }
+
+    const variance = (n > 1) ? (M2 / (n - 1)) : 0;
+    const sigma = Math.sqrt(Math.max(0, variance));
+
+    const arr = Array.from(res);
+    arr.sort((a,b)=>a-b);
+
+    const qLo = 0.00135;
+    const qHi = 0.99865;
+    const pLo = percentile(arr, qLo);
+    const pHi = percentile(arr, qHi);
+
+    const minObs = arr[0];
+    const maxObs = arr[n-1];
+
+    let pWithin = NaN;
+    if (Number.isFinite(tMin) && Number.isFinite(tMax)){
+      let cnt = 0;
+      for (let i=0; i<n; i++){
+        const x = res[i];
+        if (x >= tMin && x <= tMax) cnt++;
+      }
+      pWithin = cnt / n;
+    }
+
+    return {n, mean, sigma, pLo, pHi, minObs, maxObs, pWithin, samples: res};
+  }
+
+  function calcCpk(mean, sigma, lsl, usl){
+    if (!Number.isFinite(mean) || !Number.isFinite(sigma) || sigma <= 0) return NaN;
+    if (!Number.isFinite(lsl) || !Number.isFinite(usl) || usl <= lsl) return NaN;
+    const cpu = (usl - mean) / (3*sigma);
+    const cpl = (mean - lsl) / (3*sigma);
+    return Math.min(cpu, cpl);
+  }
+  function ppmFromWithin(pWithin){
+    if (!Number.isFinite(pWithin)) return NaN;
+    return (1 - pWithin) * 1e6;
+  }
+
+  const histCanvas = document.getElementById("histCanvas");
+  const tornadoCanvas = document.getElementById("tornadoCanvas");
+  const histMeta = document.getElementById("histMeta");
+
+  const stHist = document.getElementById("stHist");
+  const stTornado = document.getElementById("stTornado");
+
+  function setupHiDPICanvas(canvas){
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.max(10, canvas.clientWidth);
+    const h = Math.max(10, canvas.clientHeight);
+    canvas.width  = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return {ctx, w, h};
+  }
+
+  let lastSamples = null;
+  let lastPareto = null;
+
+  function drawHistogram(samples, bins=40){
+    const {ctx, w, h} = setupHiDPICanvas(histCanvas);
+    ctx.clearRect(0,0,w,h);
+
+    if (!samples || samples.length < 10){
+      setStatus(stHist, "", "—");
+      histMeta.textContent = "—";
+      return;
+    }
+
+    let min = +Infinity, max = -Infinity;
+    for (let i=0; i<samples.length; i++){
+      const x = samples[i];
+      if (x < min) min = x;
+      if (x > max) max = x;
+    }
+    if (!Number.isFinite(min) || !Number.isFinite(max) || Math.abs(max-min) < 1e-12){
+      setStatus(stHist, "warn", "SKIP");
+      histMeta.textContent = "Range ungültig.";
+      return;
+    }
+
+    const padL=46, padR=14, padT=10, padB=24;
+    const plotW = w - padL - padR;
+    const plotH = h - padT - padB;
+
+    const counts = new Array(bins).fill(0);
+    const bw = (max - min) / bins;
+
+    for (let i=0; i<samples.length; i++){
+      const x = samples[i];
+      let k = Math.floor((x - min) / bw);
+      if (k < 0) k = 0;
+      if (k >= bins) k = bins - 1;
+      counts[k]++;
+    }
+    const cMax = Math.max(...counts);
+
+    const axis = PRINT_MODE ? "#000" : "rgba(255,255,255,.22)";
+    const label = PRINT_MODE ? "#000" : "rgba(169,183,214,.85)";
+    const bar = PRINT_MODE ? "#1a1a1a" : "rgba(77,163,255,.65)";
+
+    ctx.strokeStyle = axis;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padL, padT);
+    ctx.lineTo(padL, padT+plotH);
+    ctx.lineTo(padL+plotW, padT+plotH);
+    ctx.stroke();
+
+    const barGap = 1;
+    const barW = plotW / bins;
+    ctx.fillStyle = bar;
+
+    for (let k=0; k<bins; k++){
+      const c = counts[k];
+      const bh = (c / cMax) * plotH;
+      const x = padL + k*barW;
+      const y = padT + (plotH - bh);
+      ctx.fillRect(x, y, Math.max(0, barW - barGap), bh);
+    }
+
+    ctx.fillStyle = label;
+    ctx.font = "11px " + getComputedStyle(document.body).fontFamily;
+    ctx.textBaseline = "top";
+    ctx.textAlign = "left";
+    ctx.fillText(fmt(min), padL, padT+plotH+4);
+    ctx.textAlign = "right";
+    ctx.fillText(fmt(max), padL+plotW, padT+plotH+4);
+
+    setStatus(stHist, "good", "OK");
+    histMeta.textContent = `bins=${bins} · n=${samples.length.toLocaleString("de-DE")} · range=${fmt(min)} .. ${fmt(max)}`;
+  }
+
+  function sensitivityPareto(data){
+    const rows = data.map(d => {
+      const tp = Math.max(0, d.tp), tm = Math.max(0, d.tm);
+      const tolEff = Math.sqrt((tp*tp + tm*tm) / 2);
+      const w = tolEff * tolEff;
+      return {name: d.name, w};
+    });
+    const sumW = rows.reduce((a,r)=>a+r.w, 0);
+    return rows.map(r => ({
+      name: r.name,
+      pct: (sumW > 0) ? (r.w / sumW * 100) : 0
+    })).sort((a,b)=> b.pct - a.pct);
+  }
+
+  function drawTornado(pareto){
+    const {ctx, w, h} = setupHiDPICanvas(tornadoCanvas);
+    ctx.clearRect(0,0,w,h);
+
+    if (!pareto || pareto.length === 0){
+      setStatus(stTornado, "", "—");
+      return;
+    }
+
+    const padL=170, padR=20, padT=10, padB=10;
+    const plotW = w - padL - padR;
+    const rowH = 18;
+    const maxRows = Math.max(1, Math.floor((h - padT - padB) / rowH));
+    const items = pareto.slice(0, maxRows);
+
+    const grid = PRINT_MODE ? "rgba(0,0,0,.18)" : "rgba(255,255,255,.10)";
+    const label = PRINT_MODE ? "#000" : "rgba(169,183,214,.90)";
+    const pctTxt = PRINT_MODE ? "#000" : "rgba(232,238,252,.95)";
+    const green = PRINT_MODE ? "#222" : "rgba(40,209,124,.65)";
+    const red   = PRINT_MODE ? "#000" : "rgba(255,77,94,.70)";
+
+    ctx.strokeStyle = grid;
+    ctx.lineWidth = 1;
+    for (const g of [0,25,50,75,100]){
+      const x = padL + (g/100)*plotW;
+      ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, h-padB); ctx.stroke();
+    }
+
+    ctx.font = "11px " + getComputedStyle(document.body).fontFamily;
+    ctx.textBaseline = "middle";
+
+    for (let i=0; i<items.length; i++){
+      const it = items[i];
+      const y = padT + i*rowH + rowH/2;
+
+      ctx.textAlign = "left";
+      ctx.fillStyle = label;
+      ctx.fillText(it.name, 10, y);
+
+      const bw = (it.pct / 100) * plotW;
+      const x0 = padL;
+      const y0 = y - 6;
+
+      const hot = it.pct > 30;
+      ctx.fillStyle = hot ? red : green;
+      ctx.fillRect(x0, y0, bw, 12);
+
+      ctx.textAlign = "right";
+      ctx.fillStyle = pctTxt;
+      ctx.fillText(it.pct.toFixed(1) + "%", x0 + Math.min(plotW, bw) - 4, y);
+    }
+
+    setStatus(stTornado, "good", "OK");
+  }
+
+  const stNom = document.getElementById("stNom");
+  const stTarget = document.getElementById("stTarget");
+  const stWC = document.getElementById("stWC");
+  const stRSS = document.getElementById("stRSS");
+  const stMC = document.getElementById("stMC");
+  const stVM = document.getElementById("stVM");
+
+  const outNom = document.getElementById("outNom");
+  const outTarget = document.getElementById("outTarget");
+  const outWC = document.getElementById("outWC");
+  const outRSS = document.getElementById("outRSS");
+  const outMC = document.getElementById("outMC");
+  const outMC2 = document.getElementById("outMC2");
+  const outCpk = document.getElementById("outCpk");
+  const outPpm = document.getElementById("outPpm");
+
+  let lastCalc = { tMin:NaN, tMax:NaN, wcMin:NaN, wcMax:NaN, rssMin:NaN, rssMax:NaN, mcMin:NaN, mcMax:NaN };
+
+  function calc(runMC=true){
+    const data = readRows();
+    const issues = validate(data);
+    if (issues.length){
+      showErr("⚠️ FEHLENDE/FEHLERHAFTE DATEN:\n- " + issues.join("\n- "));
+      clearOutputs();
+      return;
+    }
+    showErr("");
+
+    const nomSum = data.reduce((a,d)=> a + d.nom, 0);
+    const wcMin = data.reduce((a,d)=> a + (d.nom - d.tm), 0);
+    const wcMax = data.reduce((a,d)=> a + (d.nom + d.tp), 0);
+
+    const rssPlus  = Math.sqrt(data.reduce((a,d)=> a + d.tp*d.tp, 0));
+    const rssMinus = Math.sqrt(data.reduce((a,d)=> a + d.tm*d.tm, 0));
+    const rssMin = nomSum - rssMinus;
+    const rssMax = nomSum + rssPlus;
+
+    const tMin = toNum(document.getElementById("gapMin").value);
+    const tMax = toNum(document.getElementById("gapMax").value);
+
+    if (Number.isFinite(tMin) && Number.isFinite(tMax) && tMin >= tMax){
+      showErr("⚠️ Ungültige Zielgrenzen: LSL muss kleiner als USL sein.");
+      clearOutputs();
+      return;
+    }
+
+    outNom.textContent = fmt(nomSum);
+    setStatus(stNom, "good", "OK");
+
+    if (Number.isFinite(tMin) && Number.isFinite(tMax)){
+      outTarget.textContent = `${fmt(tMin)} .. ${fmt(tMax)}`;
+      setStatus(stTarget, "good", "gesetzt");
+    } else if (Number.isFinite(tMin) || Number.isFinite(tMax)){
+      outTarget.textContent = `${Number.isFinite(tMin)?fmt(tMin):"—"} .. ${Number.isFinite(tMax)?fmt(tMax):"—"}`;
+      setStatus(stTarget, "warn", "teilweise");
+    } else {
+      outTarget.textContent = "—";
+      setStatus(stTarget, "", "—");
+    }
+
+    outWC.textContent = `${fmt(wcMin)} .. ${fmt(wcMax)}`;
+    outRSS.textContent = `${fmt(rssMin)} .. ${fmt(rssMax)}`;
+
+    if (Number.isFinite(tMin) && Number.isFinite(tMax)){
+      const wcPass  = (wcMin >= tMin) && (wcMax <= tMax);
+      const rssPass = (rssMin >= tMin) && (rssMax <= tMax);
+      setStatus(stWC,  wcPass ? "good":"bad", wcPass ? "PASS":"FAIL");
+      setStatus(stRSS, rssPass? "good":"bad", rssPass? "PASS":"FAIL");
+    } else {
+      setStatus(stWC, "", "—");
+      setStatus(stRSS, "", "—");
+    }
+
+    lastPareto = sensitivityPareto(data);
+    drawTornado(lastPareto);
+
+    let mcMin = NaN, mcMax = NaN;
+    if (runMC){
+      const n = toNum(document.getElementById("mcN").value);
+      const dist = document.getElementById("mcDist").value;
+      const seedRaw = document.getElementById("mcSeed").value;
+      const seed = seedRaw === "" ? NaN : toNum(seedRaw);
+
+      if (!Number.isFinite(n) || n < 1000){
+        outMC.textContent = "—";
+        outMC2.textContent = "⚠️ Samples ungültig (>=1000).";
+        setStatus(stMC, "warn", "SKIP");
+        outCpk.textContent = "Cpk: —";
+        outPpm.textContent = "Ausschuss: —";
+        setStatus(stVM, "warn", "SKIP");
+        lastSamples = null;
+        drawHistogram(null);
+      } else {
+        const mc = monteCarlo(data, n, dist, seed, tMin, tMax);
+        mcMin = mc.pLo; mcMax = mc.pHi;
+
+        const withinTxt = Number.isFinite(mc.pWithin) ? `P(in Target) = ${(mc.pWithin*100).toFixed(2)}%` : "P(in Target) = —";
+        outMC.textContent = `MC 3σ: ${fmt(mc.pLo)} .. ${fmt(mc.pHi)}`;
+        outMC2.textContent =
+          `n=${mc.n.toLocaleString("de-DE")} · µ=${fmt(mc.mean)} · σ=${mc.sigma.toFixed(4)} mm · ` +
+          `${withinTxt} · Obs: ${fmt(mc.minObs)} .. ${fmt(mc.maxObs)}`;
+
+        if (Number.isFinite(tMin) && Number.isFinite(tMax)){
+          const mcPass = (mc.pLo >= tMin) && (mc.pHi <= tMax);
+          setStatus(stMC, mcPass ? "good":"bad", mcPass ? "PASS":"FAIL");
+        } else {
+          setStatus(stMC, "good", "OK");
+        }
+
+        if (Number.isFinite(tMin) && Number.isFinite(tMax)){
+          const cpk = calcCpk(mc.mean, mc.sigma, tMin, tMax);
+          const ppm = ppmFromWithin(mc.pWithin);
+          outCpk.textContent = Number.isFinite(cpk) ? `Cpk: ${cpk.toFixed(3)}` : "Cpk: —";
+          outPpm.textContent = Number.isFinite(ppm) ? `Ausschuss: ${ppm.toFixed(0)} ppm (sim)` : "Ausschuss: —";
+          setStatus(stVM, (Number.isFinite(cpk) && cpk >= 1.33) ? "good" : "warn", "OK");
+        } else {
+          outCpk.textContent = "Cpk: — (Zielgrenzen fehlen)";
+          outPpm.textContent = "Ausschuss: —";
+          setStatus(stVM, "warn", "SKIP");
+        }
+
+        lastSamples = mc.samples;
+        drawHistogram(lastSamples, 40);
+      }
+    }
+
+    lastCalc = { tMin, tMax, wcMin, wcMax, rssMin, rssMax, mcMin, mcMax };
+    updateViz(tMin, tMax, wcMin, wcMax, rssMin, rssMax, mcMin, mcMax);
+  }
+
+  function clearOutputs(){
+    outNom.textContent = "—";
+    outTarget.textContent = "—";
+    outWC.textContent = "—";
+    outRSS.textContent = "—";
+    outMC.textContent = "—";
+    outMC2.textContent = "—";
+    outCpk.textContent = "Cpk: —";
+    outPpm.textContent = "Ausschuss: —";
+    histMeta.textContent = "—";
+
+    setStatus(stNom, "", "—");
+    setStatus(stTarget, "", "—");
+    setStatus(stWC, "", "—");
+    setStatus(stRSS, "", "—");
+    setStatus(stMC, "", "—");
+    setStatus(stVM, "", "—");
+    setStatus(stHist, "", "—");
+    setStatus(stTornado, "", "—");
+
+    resetViz();
+    lastCalc = { tMin:NaN, tMax:NaN, wcMin:NaN, wcMax:NaN, rssMin:NaN, rssMax:NaN, mcMin:NaN, mcMax:NaN };
+    lastSamples = null;
+    lastPareto = null;
+
+    drawHistogram(null);
+    drawTornado([]);
+  }
+
+  const KEY = "stackup_dashboard_v1";
+  function save(){
+    const payload = {
+      rows: readRows().map(r => ({name:r.name, nom:r.nom, tp:r.tp, tm:r.tm})),
+      gapMin: document.getElementById("gapMin").value,
+      gapMax: document.getElementById("gapMax").value,
+      mcN: document.getElementById("mcN").value,
+      mcDist: document.getElementById("mcDist").value,
+      mcSeed: document.getElementById("mcSeed").value
+    };
+    localStorage.setItem(KEY, JSON.stringify(payload));
+    showErr("✓ Gespeichert (LocalStorage).");
+    setTimeout(()=>showErr(""), 1200);
+  }
+  function load(){
+    const raw = localStorage.getItem(KEY);
+    if (!raw) { showErr("⚠️ Kein gespeicherter Datensatz gefunden."); return; }
+    try{
+      const p = JSON.parse(raw);
+      tbody.innerHTML = "";
+      (p.rows || []).forEach(r => tbody.appendChild(makeRow({
+        name: r.name ?? "",
+        nom: (r.nom ?? ""),
+        tp: (r.tp ?? ""),
+        tm: (r.tm ?? "")
+      })));
+      document.getElementById("gapMin").value = p.gapMin ?? "";
+      document.getElementById("gapMax").value = p.gapMax ?? "";
+      document.getElementById("mcN").value = p.mcN ?? "20000";
+      document.getElementById("mcDist").value = p.mcDist ?? "gauss";
+      document.getElementById("mcSeed").value = p.mcSeed ?? "";
+      showErr("✓ Geladen.");
+      setTimeout(()=>showErr(""), 900);
+      clearOutputs();
+    }catch(e){
+      showErr("⚠️ Laden fehlgeschlagen (ungültige Daten).");
+    }
+  }
+
+  document.getElementById("addRowBtn")?.addEventListener("click", addRow);
+  document.getElementById("clearBtn")?.addEventListener("click", resetDefault);
+  document.getElementById("calcBtn")?.addEventListener("click", () => calc(true));
+  document.getElementById("saveBtn")?.addEventListener("click", save);
+  document.getElementById("loadBtn")?.addEventListener("click", load);
+  document.getElementById("mcOnlyBtn")?.addEventListener("click", () => calc(true));
+
+  document.getElementById("sim10kBtn")?.addEventListener("click", () => {
+    document.getElementById("mcN").value = "10000";
+    document.getElementById("mcDist").value = "gauss";
+    calc(true);
+  });
+
+  document.getElementById("printBtn")?.addEventListener("click", () => window.print());
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) calc(true);
+  });
+
+  let resizeTimer = null;
+  window.addEventListener("resize", () => {
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      try { if (lastSamples) drawHistogram(lastSamples, 40); else drawHistogram(null); } catch {}
+      try { if (lastPareto)  drawTornado(lastPareto); else drawTornado([]); } catch {}
+      if (Number.isFinite(lastCalc.wcMin) && Number.isFinite(lastCalc.wcMax)){
+        updateViz(lastCalc.tMin, lastCalc.tMax, lastCalc.wcMin, lastCalc.wcMax, lastCalc.rssMin, lastCalc.rssMax, lastCalc.mcMin, lastCalc.mcMax);
+      }
+    }, 120);
+  });
+
+  resetDefault();
+</script>
+</body>
+</html>
